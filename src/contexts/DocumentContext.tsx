@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useToast } from './ToastContext';
 
 export interface Document {
   id: string;
@@ -128,6 +129,7 @@ const sampleDocuments: Document[] = [
 
 export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) => {
   const [documents, setDocuments] = useState<Document[]>(sampleDocuments);
+  const { showSuccess, showError } = useToast();
 
   const uploadDocument = (file: File) => {
     const newDocument: Document = {
@@ -144,6 +146,12 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     };
 
     setDocuments(prev => [newDocument, ...prev]);
+    
+    // Show immediate upload success message
+    showSuccess(
+      'Successfully uploaded!',
+      `${file.name} is now being processed`
+    );
 
     // Enhanced processing simulation with better status tracking
     const processDocument = async (docId: string) => {
@@ -183,9 +191,15 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         
         // Show notification
         if (success) {
-          console.log(`Document ${file.name} processed successfully`);
+          showSuccess(
+            'Processing complete!',
+            `${file.name} is ready to use`
+          );
         } else {
-          console.error(`Document ${file.name} processing failed`);
+          showError(
+            'Processing failed',
+            `${file.name} could not be processed. Please try again.`
+          );
         }
         
       } catch (error) {
