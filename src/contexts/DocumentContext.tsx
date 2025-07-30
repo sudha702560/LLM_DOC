@@ -7,6 +7,10 @@ export interface Document {
   size: number;
   uploadedAt: string;
   status: 'processing' | 'processed' | 'error';
+  category?: string;
+  tags?: string[];
+  starred?: boolean;
+  version?: number;
   url?: string;
 }
 
@@ -14,6 +18,7 @@ interface DocumentContextType {
   documents: Document[];
   uploadDocument: (file: File) => void;
   deleteDocument: (id: string) => void;
+  updateDocument: (id: string, updates: Partial<Document>) => void;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
@@ -38,7 +43,11 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 2456789,
     uploadedAt: '2024-01-15T10:30:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['insurance', 'health', 'policy'],
+    starred: true,
+    version: 2
   },
   {
     id: '2',
@@ -46,7 +55,11 @@ const sampleDocuments: Document[] = [
     type: 'doc',
     size: 1234567,
     uploadedAt: '2024-01-14T15:20:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['dental', 'coverage', 'guidelines'],
+    starred: false,
+    version: 1
   },
   {
     id: '3',
@@ -54,15 +67,23 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 987654,
     uploadedAt: '2024-01-13T09:15:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'medical',
+    tags: ['medical', 'conditions', 'exclusions'],
+    starred: false,
+    version: 1
   },
   {
     id: '4',
     name: 'Geographic Coverage Map.jpg',
-    type: 'image',
+    type: 'jpg',
     size: 3456789,
     uploadedAt: '2024-01-12T14:30:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['coverage', 'geographic', 'map'],
+    starred: true,
+    version: 1
   },
   {
     id: '5',
@@ -70,7 +91,35 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 1876543,
     uploadedAt: '2024-01-11T11:45:00Z',
-    status: 'processing'
+    status: 'processing',
+    category: 'legal',
+    tags: ['claims', 'workflow', 'process'],
+    starred: false,
+    version: 1
+  },
+  {
+    id: '6',
+    name: 'Financial Report Q4.pdf',
+    type: 'pdf',
+    size: 2234567,
+    uploadedAt: '2024-01-10T08:30:00Z',
+    status: 'processed',
+    category: 'financial',
+    tags: ['financial', 'report', 'quarterly'],
+    starred: false,
+    version: 1
+  },
+  {
+    id: '7',
+    name: 'Contract Template.docx',
+    type: 'docx',
+    size: 876543,
+    uploadedAt: '2024-01-09T16:20:00Z',
+    status: 'processed',
+    category: 'contract',
+    tags: ['contract', 'template', 'legal'],
+    starred: true,
+    version: 3
   }
 ];
 
@@ -84,7 +133,11 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       type: file.name.split('.').pop()?.toLowerCase() || 'unknown',
       size: file.size,
       uploadedAt: new Date().toISOString(),
-      status: 'processing'
+      status: 'processing',
+      category: 'policy', // Default category
+      tags: [],
+      starred: false,
+      version: 1
     };
 
     setDocuments(prev => [newDocument, ...prev]);
@@ -105,11 +158,20 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     setDocuments(prev => prev.filter(doc => doc.id !== id));
   };
 
+  const updateDocument = (id: string, updates: Partial<Document>) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === id ? { ...doc, ...updates } : doc
+      )
+    );
+  };
+
   return (
     <DocumentContext.Provider value={{
       documents,
       uploadDocument,
-      deleteDocument
+      deleteDocument,
+      updateDocument
     }}>
       {children}
     </DocumentContext.Provider>
