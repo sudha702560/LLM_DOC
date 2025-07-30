@@ -165,7 +165,7 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
         await new Promise(resolve => setTimeout(resolve, processingTime));
         
         // Randomly simulate success or error (90% success rate)
-        const success = Math.random() > 0.1;
+        const success = true;
         
         setDocuments(prev => 
           prev.map(doc => 
