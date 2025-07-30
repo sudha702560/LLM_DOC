@@ -46,13 +46,13 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryProvider>
-      <DocumentProvider>
-        <ToastProvider>
+    <ToastProvider>
+      <QueryProvider>
+        <DocumentProvider>
           <AppContent />
-        </ToastProvider>
-      </DocumentProvider>
-    </QueryProvider>
+        </DocumentProvider>
+      </QueryProvider>
+    </ToastProvider>
   );
 }
 
