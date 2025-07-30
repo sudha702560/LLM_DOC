@@ -23,7 +23,8 @@ import {
   Share2,
   Copy,
   Archive,
-  RefreshCw
+  RefreshCw,
+  X
 } from 'lucide-react';
 import { useDocuments } from '../contexts/DocumentContext';
 
