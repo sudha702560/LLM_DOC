@@ -498,9 +498,17 @@ export default function Documents() {
                         <span className={`px-2 py-1 text-xs rounded-full ${
                           doc.status === 'processed' ? 'bg-green-100 text-green-700' :
                           doc.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                          doc.status === 'error' ? 'bg-red-100 text-red-700' :
                           'bg-gray-100 text-gray-700'
                         }`}>
-                          {doc.status}
+                          {doc.status === 'processing' ? (
+                            <div className="flex items-center space-x-1">
+                              <div className="animate-spin h-3 w-3 border border-yellow-600 border-t-transparent rounded-full"></div>
+                              <span>Processing</span>
+                            </div>
+                          ) : (
+                            doc.status
+                          )}
                         </span>
                         <div className="flex items-center space-x-1">
                           <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200">
@@ -594,10 +602,23 @@ export default function Documents() {
                             <span className={`px-2 py-1 text-xs rounded-full ${
                               doc.status === 'processed' ? 'bg-green-100 text-green-700' :
                               doc.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
+                              doc.status === 'error' ? 'bg-red-100 text-red-700' :
                               'bg-gray-100 text-gray-700'
                             }`}>
-                              {doc.status}
+                              {doc.status === 'processing' ? (
+                                <div className="flex items-center space-x-1">
+                                  <div className="animate-spin h-3 w-3 border border-yellow-600 border-t-transparent rounded-full"></div>
+                                  <span>Processing</span>
+                                </div>
+                              ) : (
+                                doc.status
+                              )}
                             </span>
+                            {doc.errorMessage && (
+                              <div className="text-xs text-red-600 mt-1" title={doc.errorMessage}>
+                                Click to retry
+                              </div>
+                            )}
                           </td>
                           <td className="px-4 py-4">
                             <div className="flex items-center space-x-2">

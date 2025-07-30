@@ -12,6 +12,9 @@ export interface Document {
   starred?: boolean;
   version?: number;
   url?: string;
+  processedAt?: string;
+  errorMessage?: string;
+  processingProgress?: number;
 }
 
 interface DocumentContextType {
@@ -142,16 +145,63 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
 
     setDocuments(prev => [newDocument, ...prev]);
 
-    // Simulate processing
-    setTimeout(() => {
-      setDocuments(prev => 
-        prev.map(doc => 
-          doc.id === newDocument.id 
-            ? { ...doc, status: 'processed' as const }
-            : doc
-        )
-      );
-    }, 3000);
+    // Enhanced processing simulation with better status tracking
+    const processDocument = async (docId: string) => {
+      try {
+        // Simulate initial processing delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Update to processing with progress indication
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { ...doc, status: 'processing' as const }
+              : doc
+          )
+        );
+        
+        // Simulate actual processing time (2-5 seconds)
+        const processingTime = Math.random() * 3000 + 2000;
+        await new Promise(resolve => setTimeout(resolve, processingTime));
+        
+        // Randomly simulate success or error (90% success rate)
+        const success = Math.random() > 0.1;
+        
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { 
+                  ...doc, 
+                  status: success ? 'processed' as const : 'error' as const,
+                  // Add processing metadata
+                  processedAt: success ? new Date().toISOString() : undefined,
+                  errorMessage: success ? undefined : 'Processing failed - please try again'
+                }
+              : doc
+          )
+        );
+        
+        // Show notification
+        if (success) {
+          console.log(`Document ${file.name} processed successfully`);
+        } else {
+          console.error(`Document ${file.name} processing failed`);
+        }
+        
+      } catch (error) {
+        console.error('Processing error:', error);
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { ...doc, status: 'error' as const, errorMessage: 'Processing failed' }
+              : doc
+          )
+        );
+      }
+    };
+    
+    // Start processing
+    processDocument(newDocument.id);
   };
 
   const deleteDocument = (id: string) => {
