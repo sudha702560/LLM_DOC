@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useToast } from './ToastContext';
+import StatusBadge from '../components/StatusBadge';
 
 export interface Document {
   id: string;
@@ -149,8 +150,8 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     
     // Show immediate upload success message
     showSuccess(
-      'Successfully uploaded!',
-      `${file.name} is now being processed`
+      'Successfully',
+      `Uploaded! ${file.name} is now being processed`
     );
 
     // Enhanced processing simulation with better status tracking

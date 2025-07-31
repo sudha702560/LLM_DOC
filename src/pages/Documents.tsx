@@ -27,6 +27,7 @@ import {
   X
 } from 'lucide-react';
 import { useDocuments } from '../contexts/DocumentContext';
+import StatusBadge from '../components/StatusBadge';
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'date' | 'size' | 'type';

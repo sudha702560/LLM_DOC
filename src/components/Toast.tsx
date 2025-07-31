@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { CheckCircle, X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
+import StatusBadge from './StatusBadge';
 
 export interface ToastProps {
   id: string;
@@ -44,15 +45,30 @@ const Toast: React.FC<ToastProps> = ({
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return 'bg-green-50 border-green-200';
+        return 'bg-white border-gray-200';
       case 'error':
-        return 'bg-red-50 border-red-200';
+        return 'bg-white border-gray-200';
       case 'warning':
-        return 'bg-yellow-50 border-yellow-200';
+        return 'bg-white border-gray-200';
       case 'info':
-        return 'bg-blue-50 border-blue-200';
+        return 'bg-white border-gray-200';
       default:
-        return 'bg-gray-50 border-gray-200';
+        return 'bg-white border-gray-200';
+    }
+  };
+
+  const getStatusType = () => {
+    switch (type) {
+      case 'success':
+        return 'success';
+      case 'error':
+        return 'failed';
+      case 'warning':
+        return 'warning';
+      case 'info':
+        return 'info';
+      default:
+        return 'info';
     }
   };
 
@@ -65,18 +81,13 @@ const Toast: React.FC<ToastProps> = ({
     >
       <div className="p-4">
         <div className="flex items-start">
-          <div className="flex-shrink-0">
-            {getIcon()}
-          </div>
-          <div className="ml-3 w-0 flex-1">
-            <p className="text-sm font-medium text-gray-900">
-              {title}
-            </p>
-            {message && (
-              <p className="mt-1 text-sm text-gray-600">
-                {message}
-              </p>
-            )}
+          <div className="w-0 flex-1">
+            <StatusBadge 
+              status={getStatusType()}
+              primaryText={title}
+              secondaryText={message}
+              className="w-full"
+            />
           </div>
           <div className="ml-4 flex-shrink-0 flex">
             <button

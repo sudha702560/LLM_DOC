@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Menu, Bell, Search, User } from 'lucide-react';
 import NotificationPanel from './NotificationPanel';
+import StatusBadge from './StatusBadge';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -33,10 +34,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
         
         <div className="flex items-center space-x-4">
-          <button 
-            onClick={() => setShowNotifications(!showNotifications)}
-            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md relative transition-colors duration-200"
-          >
+          <StatusBadge 
+            status="online" 
+            primaryText="System" 
+            secondaryText="Online" 
+          />
             <Bell className="h-5 w-5" />
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
               3
