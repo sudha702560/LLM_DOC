@@ -10,6 +10,7 @@ import {
   Zap,
   BarChart3
 } from 'lucide-react';
+import ProcessingBox from '../components/ProcessingBox';
 
 const stats = [
   { name: 'Total Documents', value: '2,847', change: '+12%', changeType: 'increase', icon: FileText },
@@ -93,6 +94,18 @@ export default function Dashboard() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Processing Box Demo */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="p-6 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900">Text Box Processing Demo</h3>
+          <p className="text-sm text-gray-600 mt-1">Process rectangular text boxes with ASCII formatting</p>
+        </div>
+        <ProcessingBox 
+          content="YES!"
+          onProcess={(result) => console.log('Processed:', result)}
+        />
       </div>
 
       {/* Recent Activity */}

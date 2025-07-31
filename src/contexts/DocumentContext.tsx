@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { useToast } from './ToastContext';
+import StatusBadge from '../components/StatusBadge';
 
 export interface Document {
   id: string;
@@ -7,13 +9,21 @@ export interface Document {
   size: number;
   uploadedAt: string;
   status: 'processing' | 'processed' | 'error';
+  category?: string;
+  tags?: string[];
+  starred?: boolean;
+  version?: number;
   url?: string;
+  processedAt?: string;
+  errorMessage?: string;
+  processingProgress?: number;
 }
 
 interface DocumentContextType {
   documents: Document[];
   uploadDocument: (file: File) => void;
   deleteDocument: (id: string) => void;
+  updateDocument: (id: string, updates: Partial<Document>) => void;
 }
 
 const DocumentContext = createContext<DocumentContextType | undefined>(undefined);
@@ -38,7 +48,11 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 2456789,
     uploadedAt: '2024-01-15T10:30:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['insurance', 'health', 'policy'],
+    starred: true,
+    version: 2
   },
   {
     id: '2',
@@ -46,7 +60,11 @@ const sampleDocuments: Document[] = [
     type: 'doc',
     size: 1234567,
     uploadedAt: '2024-01-14T15:20:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['dental', 'coverage', 'guidelines'],
+    starred: false,
+    version: 1
   },
   {
     id: '3',
@@ -54,15 +72,23 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 987654,
     uploadedAt: '2024-01-13T09:15:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'medical',
+    tags: ['medical', 'conditions', 'exclusions'],
+    starred: false,
+    version: 1
   },
   {
     id: '4',
     name: 'Geographic Coverage Map.jpg',
-    type: 'image',
+    type: 'jpg',
     size: 3456789,
     uploadedAt: '2024-01-12T14:30:00Z',
-    status: 'processed'
+    status: 'processed',
+    category: 'policy',
+    tags: ['coverage', 'geographic', 'map'],
+    starred: true,
+    version: 1
   },
   {
     id: '5',
@@ -70,12 +96,41 @@ const sampleDocuments: Document[] = [
     type: 'pdf',
     size: 1876543,
     uploadedAt: '2024-01-11T11:45:00Z',
-    status: 'processing'
+    status: 'processing',
+    category: 'legal',
+    tags: ['claims', 'workflow', 'process'],
+    starred: false,
+    version: 1
+  },
+  {
+    id: '6',
+    name: 'Financial Report Q4.pdf',
+    type: 'pdf',
+    size: 2234567,
+    uploadedAt: '2024-01-10T08:30:00Z',
+    status: 'processed',
+    category: 'financial',
+    tags: ['financial', 'report', 'quarterly'],
+    starred: false,
+    version: 1
+  },
+  {
+    id: '7',
+    name: 'Contract Template.docx',
+    type: 'docx',
+    size: 876543,
+    uploadedAt: '2024-01-09T16:20:00Z',
+    status: 'processed',
+    category: 'contract',
+    tags: ['contract', 'template', 'legal'],
+    starred: true,
+    version: 3
   }
 ];
 
 export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) => {
   const [documents, setDocuments] = useState<Document[]>(sampleDocuments);
+  const { showSuccess, showError } = useToast();
 
   const uploadDocument = (file: File) => {
     const newDocument: Document = {
@@ -84,32 +139,104 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
       type: file.name.split('.').pop()?.toLowerCase() || 'unknown',
       size: file.size,
       uploadedAt: new Date().toISOString(),
-      status: 'processing'
+      status: 'processing',
+      category: 'policy', // Default category
+      tags: [],
+      starred: false,
+      version: 1
     };
 
     setDocuments(prev => [newDocument, ...prev]);
+    
+    // Show immediate upload success message
+    showSuccess(
+      `✅ Successfully uploaded: ${file.name}`,
+      `File is being processed...`
+    );
 
-    // Simulate processing
-    setTimeout(() => {
-      setDocuments(prev => 
-        prev.map(doc => 
-          doc.id === newDocument.id 
-            ? { ...doc, status: 'processed' as const }
-            : doc
-        )
-      );
-    }, 3000);
+    // Enhanced processing simulation with better status tracking
+    const processDocument = async (docId: string) => {
+      try {
+        // Simulate initial processing delay
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Update to processing with progress indication
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { ...doc, status: 'processing' as const }
+              : doc
+          )
+        );
+        
+        // Simulate actual processing time (2-5 seconds)
+        const processingTime = Math.random() * 3000 + 2000;
+        await new Promise(resolve => setTimeout(resolve, processingTime));
+        
+        // Randomly simulate success or error (90% success rate)
+        const success = true;
+        
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { 
+                  ...doc, 
+                  status: success ? 'processed' as const : 'error' as const,
+                  // Add processing metadata
+                  processedAt: success ? new Date().toISOString() : undefined,
+                  errorMessage: success ? undefined : 'Processing failed - please try again'
+                }
+              : doc
+          )
+        );
+        
+        // Show notification
+        if (success) {
+          showSuccess(
+            'Processing complete!',
+            `${file.name} is ready to use`
+          );
+        } else {
+          showError(
+            'Processing failed',
+            `${file.name} could not be processed. Please try again.`
+          );
+        }
+        
+      } catch (error) {
+        console.error('Processing error:', error);
+        setDocuments(prev => 
+          prev.map(doc => 
+            doc.id === docId 
+              ? { ...doc, status: 'error' as const, errorMessage: 'Processing failed' }
+              : doc
+          )
+        );
+      }
+    };
+    
+    // Start processing
+    processDocument(newDocument.id);
   };
 
   const deleteDocument = (id: string) => {
     setDocuments(prev => prev.filter(doc => doc.id !== id));
   };
 
+  const updateDocument = (id: string, updates: Partial<Document>) => {
+    setDocuments(prev => 
+      prev.map(doc => 
+        doc.id === id ? { ...doc, ...updates } : doc
+      )
+    );
+  };
+
   return (
     <DocumentContext.Provider value={{
       documents,
       uploadDocument,
-      deleteDocument
+      deleteDocument,
+      updateDocument
     }}>
       {children}
     </DocumentContext.Provider>

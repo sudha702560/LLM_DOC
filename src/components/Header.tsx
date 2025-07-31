@@ -1,13 +1,17 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Menu, Bell, Search, User } from 'lucide-react';
+import NotificationPanel from './NotificationPanel';
+import StatusBadge from './StatusBadge';
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 export default function Header({ onMenuClick }: HeaderProps) {
+  const [showNotifications, setShowNotifications] = useState(false);
+
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3">
+    <header className="bg-white border-b border-gray-200 px-4 py-3 relative">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <button
@@ -30,9 +34,17 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
         
         <div className="flex items-center space-x-4">
-          <button className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md relative">
+          <StatusBadge 
+            status="online" 
+            primaryText="System" 
+            secondaryText="Online" 
+          />
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          >
             <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
               3
             </span>
           </button>
@@ -48,6 +60,11 @@ export default function Header({ onMenuClick }: HeaderProps) {
           </div>
         </div>
       </div>
+      
+      {/* Notification Panel */}
+      {showNotifications && (
+        <NotificationPanel onClose={() => setShowNotifications(false)} />
+      )}
     </header>
   );
 }
