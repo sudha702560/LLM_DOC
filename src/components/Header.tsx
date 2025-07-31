@@ -39,6 +39,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
             primaryText="System" 
             secondaryText="Online" 
           />
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="relative p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+          >
             <Bell className="h-5 w-5" />
             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center animate-pulse">
               3
