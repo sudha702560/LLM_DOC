@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { CheckCircle, X, AlertCircle, Info, AlertTriangle } from 'lucide-react';
-import StatusBadge from './StatusBadge';
 
 export interface ToastProps {
   id: string;
@@ -30,7 +29,7 @@ const Toast: React.FC<ToastProps> = ({
   const getIcon = () => {
     switch (type) {
       case 'success':
-        return <CheckCircle className="h-5 w-5 text-green-500" />;
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'error':
         return <AlertCircle className="h-5 w-5 text-red-500" />;
       case 'warning':
@@ -42,56 +41,61 @@ const Toast: React.FC<ToastProps> = ({
     }
   };
 
-  const getBackgroundColor = () => {
+  const getToastStyles = () => {
     switch (type) {
       case 'success':
-        return 'bg-white border-gray-200';
+        return 'bg-green-50 border-green-200';
       case 'error':
-        return 'bg-white border-gray-200';
+        return 'bg-red-50 border-red-200';
       case 'warning':
-        return 'bg-white border-gray-200';
+        return 'bg-yellow-50 border-yellow-200';
       case 'info':
-        return 'bg-white border-gray-200';
+        return 'bg-blue-50 border-blue-200';
       default:
-        return 'bg-white border-gray-200';
+        return 'bg-gray-50 border-gray-200';
     }
   };
 
-  const getStatusType = () => {
+  const getTextColor = () => {
     switch (type) {
       case 'success':
-        return 'success';
+        return 'text-green-800';
       case 'error':
-        return 'failed';
+        return 'text-red-800';
       case 'warning':
-        return 'warning';
+        return 'text-yellow-800';
       case 'info':
-        return 'info';
+        return 'text-blue-800';
       default:
-        return 'info';
+        return 'text-gray-800';
     }
   };
 
   return (
     <div
-      className={`max-w-sm w-full ${getBackgroundColor()} border rounded-lg shadow-lg pointer-events-auto transform transition-all duration-300 ease-in-out`}
+      className={`max-w-md w-full ${getToastStyles()} border rounded-lg shadow-lg pointer-events-auto transform transition-all duration-300 ease-in-out`}
       role="alert"
       aria-live="polite"
       aria-atomic="true"
     >
       <div className="p-4">
-        <div className="flex items-start">
-          <div className="w-0 flex-1">
-            <StatusBadge 
-              status={getStatusType()}
-              primaryText={title}
-              secondaryText={message}
-              className="w-full"
-            />
+        <div className="flex items-start space-x-3">
+          <div className="flex-shrink-0">
+            {getIcon()}
           </div>
-          <div className="ml-4 flex-shrink-0 flex">
+          <div className="flex-1 min-w-0">
+            <p className={`text-sm font-semibold ${getTextColor()}`}>
+              {title}
+            </p>
+            {message && (
+              <p className={`text-sm mt-1 ${getTextColor()} opacity-90`}>
+                {message}
+              </p>
+            )}
+          </div>
+          <div className="flex-shrink-0">
             <button
-              className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 rounded-md"
+              className="inline-flex text-gray-400 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 rounded-md p-1"
               onClick={() => onClose(id)}
               aria-label="Close notification"
             >

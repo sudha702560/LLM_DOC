@@ -150,8 +150,8 @@ export const DocumentProvider: React.FC<DocumentProviderProps> = ({ children }) 
     
     // Show immediate upload success message
     showSuccess(
-      'Successfully',
-      `Uploaded! ${file.name} is now being processed`
+      `✅ Successfully uploaded: ${file.name}`,
+      `File is being processed...`
     );
 
     // Enhanced processing simulation with better status tracking
