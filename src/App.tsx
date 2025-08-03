@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import ProtectedRoute from './components/ProtectedRoute';
+import Login from './pages/Login';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import Dashboard from './pages/Dashboard';
@@ -20,22 +23,52 @@ function AppContent() {
 
   return (
     <Router>
-      <div className="flex h-screen bg-gray-50">
-        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-        
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <Header onMenuClick={() => setSidebarOpen(true)} />
-          
-          <main className="flex-1 overflow-auto">
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/documents" element={<Documents />} />
-              <Route path="/query" element={<QueryProcessor />} />
-              <Route path="/history" element={<History />} />
-              <Route path="/analytics" element={<Analytics />} />
-              <Route path="/settings" element={<Settings />} />
-            </Routes>
-          </main>
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/*" element={
+          <ProtectedRoute>
+            <div className="flex h-screen bg-gray-50">
+              <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+              
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <Header onMenuClick={() => setSidebarOpen(true)} />
+                
+                <main className="flex-1 overflow-auto">
+                  <Routes>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/documents" element={<Documents />} />
+                    <Route path="/query" element={<QueryProcessor />} />
+                    <Route path="/history" element={<History />} />
+                    <Route path="/analytics" element={<Analytics />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Routes>
+                </main>
+              </div>
+            </div>
+          </ProtectedRoute>
+        } />
+      </Routes>
+      
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+    </Router>
+  );
+}
+
+function App() {
+  return (
+    <ToastProvider>
+      <AuthProvider>
+        <QueryProvider>
+          <DocumentProvider>
+            <AppContent />
+          </DocumentProvider>
+        </QueryProvider>
+      </AuthProvider>
+    </ToastProvider>
+  );
+}
+
+export default App;
         </div>
       </div>
       

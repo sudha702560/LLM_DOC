@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   Eye, 
   EyeOff, 
@@ -8,14 +8,16 @@ import {
   Brain,
   Shield,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { useToast } from '../contexts/ToastContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { login, isLoading } = useAuth();
+  const location = useLocation();
+  const { login, isLoading, isAuthenticated } = useAuth();
   const { showSuccess, showError } = useToast();
   
   const [formData, setFormData] = useState({
@@ -25,21 +27,40 @@ export default function Login() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [touched, setTouched] = useState<{[key: string]: boolean}>({});
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location]);
+
+  const validateField = (name: string, value: string) => {
+    switch (name) {
+      case 'email':
+        if (!value) return 'Email is required';
+        if (!/\S+@\S+\.\S+/.test(value)) return 'Please enter a valid email address';
+        return '';
+      case 'password':
+        if (!value) return 'Password is required';
+        if (value.length < 6) return 'Password must be at least 6 characters';
+        return '';
+      default:
+        return '';
+    }
+  };
 
   const validateForm = () => {
     const newErrors: {[key: string]: string} = {};
     
-    if (!formData.email) {
-      newErrors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Please enter a valid email address';
-    }
-    
-    if (!formData.password) {
-      newErrors.password = 'Password is required';
-    } else if (formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters';
-    }
+    Object.keys(formData).forEach(key => {
+      if (key !== 'rememberMe') {
+        const error = validateField(key, formData[key as keyof typeof formData] as string);
+        if (error) newErrors[key] = error;
+      }
+    });
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -48,33 +69,54 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Mark all fields as touched
+    setTouched({ email: true, password: true });
+    
     if (!validateForm()) {
+      showError('Validation Error', 'Please fix the errors below');
       return;
     }
 
     try {
       await login(formData.email, formData.password, formData.rememberMe);
       showSuccess('Welcome back!', 'Successfully logged in to DocIntel');
-      navigate('/');
+      
+      // Navigate to intended page or dashboard
+      const from = location.state?.from?.pathname || '/';
+      navigate(from, { replace: true });
     } catch (error) {
-      showError('Login failed', 'Invalid email or password. Please try again.');
+      showError('Login Failed', 'Invalid email or password. Please try again.');
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
     setFormData(prev => ({
       ...prev,
-      [name]: type === 'checkbox' ? checked : value
+      [name]: newValue
     }));
     
-    // Clear error when user starts typing
-    if (errors[name]) {
+    // Real-time validation for touched fields
+    if (touched[name] && type !== 'checkbox') {
+      const error = validateField(name, value);
       setErrors(prev => ({
         ...prev,
-        [name]: ''
+        [name]: error
       }));
     }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setTouched(prev => ({ ...prev, [name]: true }));
+    
+    const error = validateField(name, value);
+    setErrors(prev => ({
+      ...prev,
+      [name]: error
+    }));
   };
 
   const demoCredentials = [
@@ -86,6 +128,7 @@ export default function Login() {
   const fillDemoCredentials = (email: string, password: string) => {
     setFormData(prev => ({ ...prev, email, password }));
     setErrors({});
+    setTouched({});
   };
 
   return (
@@ -108,7 +151,7 @@ export default function Login() {
 
         {/* Login Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             {/* Email Field */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
@@ -125,10 +168,14 @@ export default function Login() {
                   autoComplete="email"
                   value={formData.email}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
                   className={`block w-full pl-10 pr-3 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
                     errors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
                   placeholder="Enter your email"
+                  disabled={isLoading}
+                  aria-invalid={errors.email ? 'true' : 'false'}
+                  aria-describedby={errors.email ? 'email-error' : undefined}
                 />
                 {errors.email && (
                   <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -137,7 +184,7 @@ export default function Login() {
                 )}
               </div>
               {errors.email && (
-                <p className="mt-2 text-sm text-red-600 flex items-center space-x-1">
+                <p id="email-error" className="mt-2 text-sm text-red-600 flex items-center space-x-1" role="alert">
                   <AlertCircle className="h-4 w-4" />
                   <span>{errors.email}</span>
                 </p>
@@ -160,15 +207,21 @@ export default function Login() {
                   autoComplete="current-password"
                   value={formData.password}
                   onChange={handleInputChange}
+                  onBlur={handleBlur}
                   className={`block w-full pl-10 pr-12 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors duration-200 ${
                     errors.password ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
                   placeholder="Enter your password"
+                  disabled={isLoading}
+                  aria-invalid={errors.password ? 'true' : 'false'}
+                  aria-describedby={errors.password ? 'password-error' : undefined}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  disabled={isLoading}
                 >
                   {showPassword ? (
                     <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
@@ -178,7 +231,7 @@ export default function Login() {
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-2 text-sm text-red-600 flex items-center space-x-1">
+                <p id="password-error" className="mt-2 text-sm text-red-600 flex items-center space-x-1" role="alert">
                   <AlertCircle className="h-4 w-4" />
                   <span>{errors.password}</span>
                 </p>
@@ -195,6 +248,7 @@ export default function Login() {
                   checked={formData.rememberMe}
                   onChange={handleInputChange}
                   className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  disabled={isLoading}
                 />
                 <label htmlFor="rememberMe" className="ml-2 block text-sm text-gray-700">
                   Remember me
@@ -203,6 +257,7 @@ export default function Login() {
               <button
                 type="button"
                 className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
+                disabled={isLoading}
               >
                 Forgot password?
               </button>
@@ -213,16 +268,20 @@ export default function Login() {
               type="submit"
               disabled={isLoading}
               className="w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-teal-600 hover:from-blue-700 hover:to-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+              aria-describedby="login-button-description"
             >
               {isLoading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  <Loader2 className="animate-spin h-4 w-4 mr-2" />
                   Signing in...
                 </>
               ) : (
                 'Sign in'
               )}
             </button>
+            <p id="login-button-description" className="sr-only">
+              Click to sign in to your account
+            </p>
           </form>
 
           {/* Demo Credentials */}
@@ -237,7 +296,9 @@ export default function Login() {
                   key={index}
                   type="button"
                   onClick={() => fillDemoCredentials(cred.email, cred.password)}
-                  className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200 group"
+                  className="w-full text-left p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors duration-200 group focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isLoading}
+                  aria-label={`Use ${cred.role} demo account`}
                 >
                   <div className="flex items-center justify-between">
                     <div>
@@ -259,7 +320,10 @@ export default function Login() {
         <div className="text-center">
           <p className="text-sm text-gray-600">
             Don't have an account?{' '}
-            <button className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200">
+            <button 
+              className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
+              disabled={isLoading}
+            >
               Contact your administrator
             </button>
           </p>
