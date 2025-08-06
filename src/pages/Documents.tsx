@@ -24,17 +24,34 @@ import {
   Copy,
   Archive,
   RefreshCw,
-  X
+  X,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Trash,
+  RotateCcw
 } from 'lucide-react';
 import { useDocuments } from '../contexts/DocumentContext';
-import StatusBadge from '../components/StatusBadge';
+import { useToast } from '../contexts/ToastContext';
 
 type ViewMode = 'grid' | 'list';
 type SortField = 'name' | 'date' | 'size' | 'type';
 type SortOrder = 'asc' | 'desc';
 
 export default function Documents() {
-  const { documents, uploadDocument, deleteDocument, updateDocument } = useDocuments();
+  const { 
+    documents, 
+    stats, 
+    uploadDocument, 
+    deleteDocument, 
+    updateDocument, 
+    bulkDeleteDocuments,
+    cleanupRedundantData,
+    retryProcessing,
+    validateFile
+  } = useDocuments();
+  const { showSuccess, showError, showWarning } = useToast();
+  
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -48,6 +65,9 @@ export default function Documents() {
   const [newDocumentName, setNewDocumentName] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -59,24 +79,51 @@ export default function Documents() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent) => {
+  const handleDrop = async (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      Array.from(e.dataTransfer.files).forEach(file => {
-        uploadDocument(file);
-      });
+      await handleFileUpload(Array.from(e.dataTransfer.files));
     }
   };
 
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      Array.from(e.target.files).forEach(file => {
-        uploadDocument(file);
-      });
+      await handleFileUpload(Array.from(e.target.files));
     }
+    // Reset input
+    e.target.value = '';
+  };
+
+  const handleFileUpload = async (files: File[]) => {
+    setIsUploading(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const file of files) {
+      try {
+        await uploadDocument(file);
+        successCount++;
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      showSuccess(
+        'Upload Complete',
+        `${successCount} file(s) uploaded successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}`
+      );
+    }
+
+    if (errorCount > 0 && successCount === 0) {
+      showError('Upload Failed', `${errorCount} file(s) failed to upload`);
+    }
+
+    setIsUploading(false);
+    setShowUploadModal(false);
   };
 
   const handleSort = (field: SortField) => {
@@ -89,7 +136,10 @@ export default function Documents() {
   };
 
   const handleRename = (docId: string, newName: string) => {
-    updateDocument(docId, { name: newName });
+    if (newName.trim() && newName !== documents.find(d => d.id === docId)?.name) {
+      updateDocument(docId, { name: newName.trim() });
+      showSuccess('Renamed', 'Document renamed successfully');
+    }
     setEditingDocument(null);
     setNewDocumentName('');
   };
@@ -108,6 +158,27 @@ export default function Documents() {
     } else {
       setSelectedDocuments(filteredDocuments.map(doc => doc.id));
     }
+  };
+
+  const handleDeleteDocument = async (id: string) => {
+    await deleteDocument(id);
+    setShowDeleteConfirm(null);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDocuments.length > 0) {
+      await bulkDeleteDocuments(selectedDocuments);
+      setSelectedDocuments([]);
+      setShowBulkDeleteConfirm(false);
+    }
+  };
+
+  const handleCleanup = async () => {
+    await cleanupRedundantData();
+  };
+
+  const handleRetry = async (id: string) => {
+    await retryProcessing(id);
   };
 
   const filteredDocuments = documents
@@ -161,6 +232,7 @@ export default function Documents() {
       case 'docx': return <FileText className="h-8 w-8 text-blue-500" />;
       case 'image': return <FileImage className="h-8 w-8 text-green-500" />;
       case 'jpg': return <FileImage className="h-8 w-8 text-green-500" />;
+      case 'jpeg': return <FileImage className="h-8 w-8 text-green-500" />;
       case 'png': return <FileImage className="h-8 w-8 text-green-500" />;
       default: return <FileText className="h-8 w-8 text-gray-500" />;
     }
@@ -174,6 +246,19 @@ export default function Documents() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'processed':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'processing':
+        return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+      case 'error':
+        return <AlertTriangle className="h-4 w-4 text-red-500" />;
+      default:
+        return <Clock className="h-4 w-4 text-gray-500" />;
+    }
+  };
+
   const categories = ['all', 'policy', 'contract', 'medical', 'legal', 'financial'];
 
   return (
@@ -182,30 +267,43 @@ export default function Documents() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Document Management</h1>
-          <p className="text-gray-600 mt-1">Upload and manage policy documents, contracts, and other files</p>
+          <p className="text-gray-600 mt-1">Upload, manage, and organize your documents with intelligent processing</p>
         </div>
         <div className="flex items-center space-x-3">
           <button 
             onClick={() => setShowUploadModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200"
+            disabled={isUploading}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200"
           >
-            <Plus className="h-4 w-4" />
-            <span>Upload</span>
+            {isUploading ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Uploading...</span>
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                <span>Upload</span>
+              </>
+            )}
           </button>
-          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200">
-            <FolderPlus className="h-4 w-4" />
-            <span className="hidden sm:inline">New Folder</span>
+          <button 
+            onClick={handleCleanup}
+            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors duration-200"
+          >
+            <Trash className="h-4 w-4" />
+            <span className="hidden sm:inline">Cleanup</span>
           </button>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Enhanced Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Files</p>
-              <p className="text-2xl font-bold text-gray-900">{documents.length}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalFiles}</p>
             </div>
             <FileText className="h-8 w-8 text-blue-500" />
           </div>
@@ -214,9 +312,7 @@ export default function Documents() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Storage Used</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {formatFileSize(documents.reduce((acc, doc) => acc + doc.size, 0))}
-              </p>
+              <p className="text-2xl font-bold text-gray-900">{formatFileSize(stats.totalSize)}</p>
             </div>
             <Archive className="h-8 w-8 text-green-500" />
           </div>
@@ -225,9 +321,7 @@ export default function Documents() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Processing</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {documents.filter(doc => doc.status === 'processing').length}
-              </p>
+              <p className="text-2xl font-bold text-yellow-600">{stats.processingFiles}</p>
             </div>
             <RefreshCw className="h-8 w-8 text-yellow-500" />
           </div>
@@ -235,12 +329,10 @@ export default function Documents() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Favorites</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {documents.filter(doc => doc.starred).length}
-              </p>
+              <p className="text-sm font-medium text-gray-600">Errors</p>
+              <p className="text-2xl font-bold text-red-600">{stats.errorFiles}</p>
             </div>
-            <Star className="h-8 w-8 text-orange-500" />
+            <AlertTriangle className="h-8 w-8 text-red-500" />
           </div>
         </div>
       </div>
@@ -274,23 +366,90 @@ export default function Documents() {
                   id="file-upload-modal"
                   className="hidden"
                   onChange={handleFileInput}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png"
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif"
                   multiple
+                  disabled={isUploading}
                 />
                 <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Drop files here</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {isUploading ? 'Uploading...' : 'Drop files here'}
+                </h3>
                 <p className="text-gray-600 mb-4">or click to browse</p>
                 <label
                   htmlFor="file-upload-modal"
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg cursor-pointer transition-colors duration-200 inline-block"
+                  className={`${
+                    isUploading 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+                  } text-white px-6 py-2 rounded-lg transition-colors duration-200 inline-block`}
                 >
-                  Choose Files
+                  {isUploading ? 'Uploading...' : 'Choose Files'}
                 </label>
               </div>
               
-              <p className="text-xs text-gray-500 mt-4 text-center">
-                Support for PDF, DOC, DOCX, TXT, and image files up to 10MB
-              </p>
+              <div className="mt-4 space-y-2 text-xs text-gray-500">
+                <p><strong>Supported formats:</strong> PDF, DOC, DOCX, TXT, JPG, PNG, GIF</p>
+                <p><strong>Maximum size:</strong> 10MB per file</p>
+                <p><strong>Features:</strong> Automatic processing, duplicate detection, integrity checking</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Deletion</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this document? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteDocument(showDeleteConfirm)}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Delete Confirmation Modal */}
+      {showBulkDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-500" />
+              <h3 className="text-lg font-semibold text-gray-900">Confirm Bulk Deletion</h3>
+            </div>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete {selectedDocuments.length} selected document(s)? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowBulkDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors duration-200"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200"
+              >
+                Delete All
+              </button>
             </div>
           </div>
         </div>
@@ -322,7 +481,9 @@ export default function Documents() {
                 <option value="pdf">PDF</option>
                 <option value="doc">Word</option>
                 <option value="docx">Word</option>
-                <option value="image">Images</option>
+                <option value="txt">Text</option>
+                <option value="jpg">Images</option>
+                <option value="png">Images</option>
               </select>
             </div>
             
@@ -380,8 +541,12 @@ export default function Documents() {
           {selectedDocuments.length > 0 && (
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">{selectedDocuments.length} selected</span>
-              <button className="text-sm text-blue-600 hover:text-blue-700">Share</button>
-              <button className="text-sm text-red-600 hover:text-red-700">Delete</button>
+              <button 
+                onClick={() => setShowBulkDeleteConfirm(true)}
+                className="text-sm text-red-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition-colors duration-200"
+              >
+                Delete Selected
+              </button>
             </div>
           )}
         </div>
@@ -455,9 +620,15 @@ export default function Documents() {
                           >
                             <Star className="h-4 w-4" />
                           </button>
-                          <button className="p-1 text-gray-400 hover:text-gray-600 rounded hover:bg-gray-100">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </button>
+                          {doc.status === 'error' && (
+                            <button 
+                              onClick={() => handleRetry(doc.id)}
+                              className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-gray-100"
+                              title="Retry processing"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       
@@ -496,21 +667,17 @@ export default function Documents() {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          doc.status === 'processed' ? 'bg-green-100 text-green-700' :
-                          doc.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                          doc.status === 'error' ? 'bg-red-100 text-red-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {doc.status === 'processing' ? (
-                            <div className="flex items-center space-x-1">
-                              <div className="animate-spin h-3 w-3 border border-yellow-600 border-t-transparent rounded-full"></div>
-                              <span>Processing</span>
-                            </div>
-                          ) : (
-                            doc.status
-                          )}
-                        </span>
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(doc.status)}
+                          <span className={`text-xs font-medium ${
+                            doc.status === 'processed' ? 'text-green-700' :
+                            doc.status === 'processing' ? 'text-blue-700' :
+                            doc.status === 'error' ? 'text-red-700' :
+                            'text-gray-700'
+                          }`}>
+                            {doc.status === 'processing' ? 'Processing...' : doc.status}
+                          </span>
+                        </div>
                         <div className="flex items-center space-x-1">
                           <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200">
                             <Eye className="h-4 w-4" />
@@ -521,7 +688,7 @@ export default function Documents() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              deleteDocument(doc.id);
+                              setShowDeleteConfirm(doc.id);
                             }}
                             className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
                           >
@@ -542,6 +709,12 @@ export default function Documents() {
                               +{doc.tags.length - 2}
                             </span>
                           )}
+                        </div>
+                      )}
+
+                      {doc.status === 'error' && doc.errorMessage && (
+                        <div className="mt-2 p-2 bg-red-50 rounded text-xs text-red-700">
+                          {doc.errorMessage}
                         </div>
                       )}
                     </div>
@@ -600,24 +773,20 @@ export default function Documents() {
                           <td className="px-4 py-4 text-sm text-gray-900">{formatFileSize(doc.size)}</td>
                           <td className="px-4 py-4 text-sm text-gray-900">{new Date(doc.uploadedAt).toLocaleDateString()}</td>
                           <td className="px-4 py-4">
-                            <span className={`px-2 py-1 text-xs rounded-full ${
-                              doc.status === 'processed' ? 'bg-green-100 text-green-700' :
-                              doc.status === 'processing' ? 'bg-yellow-100 text-yellow-700' :
-                              doc.status === 'error' ? 'bg-red-100 text-red-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
-                              {doc.status === 'processing' ? (
-                                <div className="flex items-center space-x-1">
-                                  <div className="animate-spin h-3 w-3 border border-yellow-600 border-t-transparent rounded-full"></div>
-                                  <span>Processing</span>
-                                </div>
-                              ) : (
-                                doc.status
-                              )}
-                            </span>
+                            <div className="flex items-center space-x-2">
+                              {getStatusIcon(doc.status)}
+                              <span className={`text-xs font-medium ${
+                                doc.status === 'processed' ? 'text-green-700' :
+                                doc.status === 'processing' ? 'text-blue-700' :
+                                doc.status === 'error' ? 'text-red-700' :
+                                'text-gray-700'
+                              }`}>
+                                {doc.status === 'processing' ? 'Processing...' : doc.status}
+                              </span>
+                            </div>
                             {doc.errorMessage && (
                               <div className="text-xs text-red-600 mt-1" title={doc.errorMessage}>
-                                Click to retry
+                                {doc.errorMessage}
                               </div>
                             )}
                           </td>
@@ -629,11 +798,17 @@ export default function Documents() {
                               <button className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200">
                                 <Download className="h-4 w-4" />
                               </button>
-                              <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200">
-                                <Share2 className="h-4 w-4" />
-                              </button>
+                              {doc.status === 'error' && (
+                                <button 
+                                  onClick={() => handleRetry(doc.id)}
+                                  className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                                  title="Retry processing"
+                                >
+                                  <RotateCcw className="h-4 w-4" />
+                                </button>
+                              )}
                               <button
-                                onClick={() => deleteDocument(doc.id)}
+                                onClick={() => setShowDeleteConfirm(doc.id)}
                                 className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
                               >
                                 <Trash2 className="h-4 w-4" />
