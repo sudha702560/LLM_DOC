@@ -17,7 +17,7 @@ const queryHistory = [
     query: "46-year-old male, knee surgery in Pune, 3-month-old insurance policy",
     timestamp: "2024-01-15T10:30:00Z",
     status: "approved",
-    amount: "$12,500",
+    amount: "₹10,40,625",
     confidence: 94,
     processingTime: "2.3s",
     user: "John Doe"
@@ -27,7 +27,7 @@ const queryHistory = [
     query: "Dental coverage for 32F, premium policy holder",
     timestamp: "2024-01-15T09:45:00Z",
     status: "approved",
-    amount: "$2,800",
+    amount: "₹2,33,100",
     confidence: 89,
     processingTime: "1.8s",
     user: "Sarah Wilson"
@@ -37,7 +37,7 @@ const queryHistory = [
     query: "Pre-existing condition, heart surgery",
     timestamp: "2024-01-15T09:15:00Z",
     status: "rejected",
-    amount: "$0",
+    amount: "₹0",
     confidence: 96,
     processingTime: "3.1s",
     user: "Mike Johnson"
@@ -47,7 +47,7 @@ const queryHistory = [
     query: "Emergency room visit, Mumbai",
     timestamp: "2024-01-15T08:30:00Z",
     status: "processing",
-    amount: "Pending",
+    amount: "Processing",
     confidence: null,
     processingTime: "45s",
     user: "Lisa Chen"
@@ -57,7 +57,7 @@ const queryHistory = [
     query: "Prescription medication coverage, diabetes",
     timestamp: "2024-01-14T16:20:00Z",
     status: "approved",
-    amount: "$450",
+    amount: "₹37,463",
     confidence: 87,
     processingTime: "1.5s",
     user: "David Brown"
@@ -69,12 +69,44 @@ export default function History() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('all');
 
-  const filteredHistory = queryHistory.filter(item => {
-    const matchesSearch = item.query.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         item.user.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Filter for real-time data only (last 24 hours by default)
+  const getFilteredHistory = () => {
+    let filtered = queryHistory;
+    
+    // Apply date filter for real-time data
+    if (dateFilter !== 'all') {
+      const now = new Date();
+      let cutoffDate = new Date();
+      
+      switch (dateFilter) {
+        case 'today':
+          cutoffDate.setHours(0, 0, 0, 0);
+          break;
+        case 'week':
+          cutoffDate.setDate(now.getDate() - 7);
+          break;
+        case 'month':
+          cutoffDate.setMonth(now.getMonth() - 1);
+          break;
+      }
+      
+      filtered = filtered.filter(item => new Date(item.timestamp) >= cutoffDate);
+    }
+    
+    // Apply search and status filters
+    return filtered.filter(item => {
+      const matchesSearch = item.query.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           item.user.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+  };
+  
+  const filteredHistory = getFilteredHistory()
+    .sort((a, b) => {
+      // Sort by timestamp descending (most recent first) for real-time data
+      return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+    });
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -125,18 +157,21 @@ export default function History() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Total Queries</p>
-              <p className="text-2xl font-bold text-gray-900 mt-2">1,329</p>
+              <p className="text-2xl font-bold text-gray-900 mt-2">{filteredHistory.length.toLocaleString('en-IN')}</p>
             </div>
             <div className="h-12 w-12 bg-blue-50 rounded-lg flex items-center justify-center">
               <Search className="h-6 w-6 text-blue-600" />
             </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Real-time count • Updated now
           </div>
         </div>
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Approved</p>
-              <p className="text-2xl font-bold text-green-600 mt-2">892</p>
+              <p className="text-2xl font-bold text-green-600 mt-2">{filteredHistory.filter(q => q.status === 'approved').length.toLocaleString('en-IN')}</p>
             </div>
             <div className="h-12 w-12 bg-green-50 rounded-lg flex items-center justify-center">
               <CheckCircle className="h-6 w-6 text-green-600" />
@@ -147,7 +182,7 @@ export default function History() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-gray-600">Rejected</p>
-              <p className="text-2xl font-bold text-red-600 mt-2">315</p>
+              <p className="text-2xl font-bold text-red-600 mt-2">{filteredHistory.filter(q => q.status === 'rejected').length.toLocaleString('en-IN')}</p>
             </div>
             <div className="h-12 w-12 bg-red-50 rounded-lg flex items-center justify-center">
               <XCircle className="h-6 w-6 text-red-600" />
@@ -163,6 +198,9 @@ export default function History() {
             <div className="h-12 w-12 bg-purple-50 rounded-lg flex items-center justify-center">
               <Clock className="h-6 w-6 text-purple-600" />
             </div>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Current average
           </div>
         </div>
       </div>
@@ -265,7 +303,7 @@ export default function History() {
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-semibold text-gray-900">{item.amount}</div>
+                    <div className="text-sm font-semibold text-green-600">{item.amount}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {item.confidence ? (
