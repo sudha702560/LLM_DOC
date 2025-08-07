@@ -23,7 +23,7 @@ const recentQueries = [
     id: 1,
     query: '46M, knee surgery, Pune, 3-month policy',
     status: 'approved',
-    amount: '$12,500',
+    amount: '₹10,40,625',
     time: '2 minutes ago',
     confidence: 94
   },
@@ -31,7 +31,7 @@ const recentQueries = [
     id: 2,
     query: 'Dental coverage for 32F, premium policy',
     status: 'approved',
-    amount: '$2,800',
+    amount: '₹2,33,100',
     time: '15 minutes ago',
     confidence: 89
   },
@@ -39,7 +39,7 @@ const recentQueries = [
     id: 3,
     query: 'Pre-existing condition, heart surgery',
     status: 'rejected',
-    amount: '$0',
+    amount: '₹0',
     time: '23 minutes ago',
     confidence: 96
   },
@@ -47,13 +47,56 @@ const recentQueries = [
     id: 4,
     query: 'Emergency room visit, Mumbai',
     status: 'processing',
-    amount: 'Pending',
+    amount: 'Processing',
     time: '45 minutes ago',
     confidence: null
   }
 ];
 
+// Real-time data fetching utility
+const useRealTimeStats = () => {
+  const [stats, setStats] = useState(null);
+  
+  useEffect(() => {
+    const fetchCurrentStats = () => {
+      // Simulate real-time data fetching
+      const currentTime = new Date();
+      const todayStart = new Date(currentTime.getFullYear(), currentTime.getMonth(), currentTime.getDate());
+      
+      // Filter only today's data for accuracy
+      const todayQueries = recentQueries.filter(query => {
+        const queryTime = new Date();
+        queryTime.setMinutes(queryTime.getMinutes() - parseInt(query.time.split(' ')[0]));
+        return queryTime >= todayStart;
+      });
+      
+      setStats({
+        totalDocuments: 2847,
+        queriesProcessed: todayQueries.length,
+        approvedClaims: todayQueries.filter(q => q.status === 'approved').length,
+        processingTime: '2.3s'
+      });
+    };
+    
+    fetchCurrentStats();
+    const interval = setInterval(fetchCurrentStats, 30000); // Update every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
+  
+  return stats;
+};
 export default function Dashboard() {
+  const realTimeStats = useRealTimeStats();
+  
+  // Use real-time stats if available, fallback to static data
+  const currentStats = realTimeStats || {
+    totalDocuments: 2847,
+    queriesProcessed: 1329,
+    approvedClaims: 892,
+    processingTime: '2.3s'
+  };
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -72,7 +115,12 @@ export default function Dashboard() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {[
+          { name: 'Total Documents', value: currentStats.totalDocuments.toLocaleString('en-IN'), change: '+12%', changeType: 'increase', icon: FileText },
+          { name: 'Queries Processed', value: currentStats.queriesProcessed.toLocaleString('en-IN'), change: '+18%', changeType: 'increase', icon: MessageSquare },
+          { name: 'Approved Claims', value: currentStats.approvedClaims.toLocaleString('en-IN'), change: '+8%', changeType: 'increase', icon: CheckCircle },
+          { name: 'Processing Time', value: currentStats.processingTime, change: '-15%', changeType: 'decrease', icon: Clock },
+        ].map((stat) => (
           <div key={stat.name} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
               <div>
@@ -110,7 +158,7 @@ export default function Dashboard() {
                   <div className="flex-1">
                     <p className="text-sm font-medium text-gray-900 mb-1">{query.query}</p>
                     <div className="flex items-center space-x-4 text-xs text-gray-500">
-                      <span>{query.time}</span>
+                      <span>Updated: {query.time}</span>
                       {query.confidence && (
                         <span className="flex items-center space-x-1">
                           <Zap className="h-3 w-3" />
@@ -120,7 +168,7 @@ export default function Dashboard() {
                     </div>
                   </div>
                   <div className="flex items-center space-x-3">
-                    <span className="text-sm font-semibold text-gray-900">{query.amount}</span>
+                    <span className="text-sm font-semibold text-green-600">{query.amount}</span>
                     {query.status === 'approved' && (
                       <CheckCircle className="h-5 w-5 text-green-500" />
                     )}
@@ -141,7 +189,7 @@ export default function Dashboard() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900">System Performance</h3>
-            <p className="text-sm text-gray-600 mt-1">AI model accuracy and processing metrics</p>
+            <p className="text-sm text-gray-600 mt-1">Real-time AI model accuracy and processing metrics</p>
           </div>
           <div className="p-6">
             <div className="space-y-6">
@@ -179,9 +227,9 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <TrendingUp className="h-4 w-4 text-green-500" />
-                    <span className="text-sm font-medium text-gray-700">Average Response Time</span>
+                    <span className="text-sm font-medium text-gray-700">Current Response Time</span>
                   </div>
-                  <span className="text-sm font-semibold text-gray-900">2.3 seconds</span>
+                  <span className="text-sm font-semibold text-gray-900">{currentStats.processingTime}</span>
                 </div>
               </div>
             </div>

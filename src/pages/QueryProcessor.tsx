@@ -187,11 +187,11 @@ export default function QueryProcessor() {
                 </div>
               </div>
               
-              {lastResult.amount && (
+              {lastResult.amountINR && lastResult.amountINR !== '₹0' && (
                 <div className="bg-white p-3 rounded-lg">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">Approved Amount:</span>
-                    <span className="text-xl font-bold text-green-600">{lastResult.amount}</span>
+                    <span className="text-sm font-medium text-gray-700">Approved Amount (INR):</span>
+                    <span className="text-xl font-bold text-green-600">{lastResult.amountINR}</span>
                   </div>
                 </div>
               )}

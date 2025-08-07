@@ -4,7 +4,8 @@ export interface QueryResult {
   id: string;
   query: string;
   decision: 'approved' | 'rejected' | 'pending';
-  amount?: string;
+  amount?: number;
+  amountINR?: string;
   confidence: number;
   processingTime: string;
   timestamp: string;
@@ -44,6 +45,30 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [lastResult, setLastResult] = useState<QueryResult | null>(null);
   const [queryHistory, setQueryHistory] = useState<QueryResult[]>([]);
+  
+  // Currency conversion utility (USD to INR)
+  const convertToINR = (usdAmount: number): string => {
+    const exchangeRate = 83.25; // Current USD to INR rate (should be fetched from API in production)
+    const inrAmount = usdAmount * exchangeRate;
+    
+    // Format in Indian numbering system
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
+    }).format(inrAmount);
+  };
+  
+  // Get real-time data (filter out old queries)
+  const getRecentQueries = () => {
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+    
+    return queryHistory.filter(query => 
+      new Date(query.timestamp) > twentyFourHoursAgo
+    );
+  };
 
   const simulateQueryProcessing = (query: string): QueryResult => {
     // Simulate AI processing with realistic results
@@ -91,28 +116,28 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
 
     // Determine decision based on query content
     let decision: 'approved' | 'rejected' | 'pending' = 'approved';
-    let amount = '';
+    let amount = 0;
     let confidence = 85;
     
     if (lowerQuery.includes('pre-existing') || lowerQuery.includes('heart surgery')) {
       decision = 'rejected';
       confidence = 96;
-      amount = '$0';
+      amount = 0;
     } else if (lowerQuery.includes('knee surgery')) {
       decision = 'approved';
       confidence = 94;
-      amount = '$12,500';
+      amount = 12500;
     } else if (lowerQuery.includes('dental')) {
       decision = 'approved';
       confidence = 89;
-      amount = '$2,800';
+      amount = 2800;
     } else if (lowerQuery.includes('emergency')) {
       decision = 'approved';
       confidence = 92;
-      amount = '$8,750';
+      amount = 8750;
     } else {
       confidence = Math.floor(Math.random() * 20) + 75; // 75-95%
-      amount = `$${Math.floor(Math.random() * 10000) + 1000}`;
+      amount = Math.floor(Math.random() * 10000) + 1000;
     }
 
     const justification = [
@@ -137,6 +162,7 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
       query,
       decision,
       amount,
+      amountINR: amount > 0 ? convertToINR(amount) : '₹0',
       confidence,
       processingTime: `${(Math.random() * 3 + 1).toFixed(1)}s`,
       timestamp: new Date().toISOString(),
@@ -162,7 +188,7 @@ export const QueryProvider: React.FC<QueryProviderProps> = ({ children }) => {
       processQuery,
       isProcessing,
       lastResult,
-      queryHistory
+      queryHistory: getRecentQueries() // Only return recent queries
     }}>
       {children}
     </QueryContext.Provider>
